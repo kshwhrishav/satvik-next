@@ -81,6 +81,7 @@ app.post('/login', async (req, res) => {
   }
 });
 
+
 // Middleware to protect routes
 const authMiddleware = (req, res, next) => {
   const token = req.header('Authorization');
@@ -97,9 +98,30 @@ const authMiddleware = (req, res, next) => {
     res.status(400).send('Invalid Token');
   }
 };
+// Validate Token Route
+  // Validate Token Route
+app.post('/api/validate-token', authMiddleware, async (req, res) => {
+  try {
+    // req.user contains the decoded JWT payload from authMiddleware
+    const userId = req.user.userId;
+
+    // Fetch user details from MongoDB based on userId
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // If user is found, respond with user details and success message
+    res.status(200).json({ user, message: 'Token is valid' });
+  } catch (err) {
+    console.error('Error validating token:', err);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
 
 // Protected Route
-app.get('/protected', authMiddleware, (req, res) => {
+app.get('/dashboard', authMiddleware, (req, res) => {
   res.send('This is a protected route');
 });
 
