@@ -4,12 +4,10 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
-const crypto = require('crypto');
-const jwtSecret = crypto.randomBytes(64).toString('hex');
 
 const app = express();
 const MONGODB_URI = process.env.MONGODB_URI;
-const JWT_SECRET = process.env.JWT_SECRET || jwtSecret;
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Middleware
 app.use(express.json());
@@ -55,7 +53,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// Login Route
+// Login Route with extended expiration
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   console.log("Logging in user:", username);
@@ -73,13 +71,35 @@ app.post('/login', async (req, res) => {
       return res.status(400).send('Invalid Password');
     }
 
-    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '1h' });
+    // Issue token with extended expiration (e.g., 7 days)
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '7d' });
 
     res.json({ token });
   } catch (err) {
     res.status(500).send('Error logging in user');
   }
 });
+
+// Refresh Token Route
+app.post('/refresh-token', async (req, res) => {
+  const token = req.header('Authorization');
+
+  if (!token) {
+    return res.status(401).send('Access Denied. No token provided.');
+  }
+
+  try {
+    const verified = jwt.verify(token, JWT_SECRET);
+
+    // Issue new token with refreshed expiration
+    const refreshedToken = jwt.sign({ userId: verified.userId }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({ token: refreshedToken });
+  } catch (err) {
+    res.status(400).send('Invalid Token');
+  }
+});
+
 
 
 // Middleware to protect routes
